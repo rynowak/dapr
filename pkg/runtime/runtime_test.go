@@ -1768,6 +1768,7 @@ func NewTestDaprRuntimeWithProtocol(mode modes.DaprMode, protocol string, appPor
 		string(mode),
 		DefaultDaprHTTPPort,
 		0,
+		0,
 		DefaultDaprAPIGRPCPort,
 		appPort,
 		DefaultProfilePort,

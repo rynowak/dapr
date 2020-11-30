@@ -37,6 +37,7 @@ type Config struct {
 	EnableProfiling      bool
 	APIGRPCPort          int
 	InternalGRPCPort     int
+	ProxyPort            int
 	ApplicationPort      int
 	ApplicationProtocol  Protocol
 	Mode                 modes.DaprMode
@@ -56,11 +57,12 @@ type Config struct {
 func NewRuntimeConfig(
 	id string, placementAddresses []string,
 	controlPlaneAddress, allowedOrigins, globalConfig, componentsPath, appProtocol, mode string,
-	httpPort, internalGRPCPort, apiGRPCPort, appPort, profilePort int,
+	httpPort, internalGRPCPort, proxyPort, apiGRPCPort, appPort, profilePort int,
 	enableProfiling bool, maxConcurrency int, mtlsEnabled bool, sentryAddress string, appSSL bool) *Config {
 	return &Config{
 		ID:                  id,
 		HTTPPort:            httpPort,
+		ProxyPort:           proxyPort,
 		InternalGRPCPort:    internalGRPCPort,
 		APIGRPCPort:         apiGRPCPort,
 		ApplicationPort:     appPort,

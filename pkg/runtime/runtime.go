@@ -50,6 +50,7 @@ import (
 	"github.com/dapr/dapr/pkg/operator/client"
 	operatorv1pb "github.com/dapr/dapr/pkg/proto/operator/v1"
 	runtimev1pb "github.com/dapr/dapr/pkg/proto/runtime/v1"
+	proxy "github.com/dapr/dapr/pkg/proxy"
 	runtime_pubsub "github.com/dapr/dapr/pkg/runtime/pubsub"
 	"github.com/dapr/dapr/pkg/runtime/security"
 	"github.com/dapr/dapr/pkg/scopes"
@@ -106,6 +107,7 @@ type DaprRuntime struct {
 	components             []components_v1alpha1.Component
 	grpc                   *grpc.Manager
 	appChannel             channel.AppChannel
+	proxyStatus            proxy.StatusMonitor
 	appConfig              config.ApplicationConfig
 	directMessaging        messaging.DirectMessaging
 	stateStoreRegistry     state_loader.Registry
@@ -153,6 +155,7 @@ func NewDaprRuntime(runtimeConfig *Config, globalConfig *config.Configuration, a
 		globalConfig:           globalConfig,
 		accessControlList:      accessControlList,
 		grpc:                   grpc.NewGRPCManager(runtimeConfig.Mode),
+		proxyStatus:            proxy.NewStatusMonitor(),
 		json:                   jsoniter.ConfigFastest,
 		inputBindings:          map[string]bindings.InputBinding{},
 		outputBindings:         map[string]bindings.OutputBinding{},
@@ -296,6 +299,13 @@ func (a *DaprRuntime) initRuntime(opts *runtimeOpts) error {
 	// Start HTTP Server
 	a.startHTTPServer(a.runtimeConfig.HTTPPort, a.runtimeConfig.ProfilePort, a.runtimeConfig.AllowedOrigins, pipeline)
 	log.Infof("http server is running on port %v", a.runtimeConfig.HTTPPort)
+
+	// Start Proxy Server
+	err = a.startProxyServer(a.runtimeConfig.ProxyPort)
+	if err != nil {
+		log.Fatalf("failed to start proxy server: %s", err)
+	}
+	log.Infof("proxy server is running on port %v", a.runtimeConfig.ProxyPort)
 
 	err = a.startGRPCInternalServer(grpcAPI, a.runtimeConfig.InternalGRPCPort)
 	if err != nil {
@@ -675,6 +685,13 @@ func (a *DaprRuntime) startHTTPServer(port, profilePort int, allowedOrigins stri
 	server.StartNonBlocking()
 }
 
+func (a *DaprRuntime) startProxyServer(port int) error {
+	config := proxy.ServerConfig{ProxyPort: port, ApplicationPort: a.runtimeConfig.ApplicationPort, Namespace: a.namespace, AppID: a.runtimeConfig.ID}
+	server := proxy.NewProxyServer(config, a.proxyStatus, a.nameResolver, a.grpc.GetGRPCConnection)
+	err := server.StartNonBlocking()
+	return err
+}
+
 func (a *DaprRuntime) startGRPCInternalServer(api grpc.API, port int) error {
 	serverConf := a.getNewServerConfig(port)
 	server := grpc.NewInternalServer(api, serverConf, a.globalConfig.Spec.TracingSpec, a.globalConfig.Spec.MetricSpec, a.authenticator)
@@ -700,7 +717,7 @@ func (a *DaprRuntime) getNewServerConfig(port int) grpc.ServerConfig {
 }
 
 func (a *DaprRuntime) getGRPCAPI() grpc.API {
-	return grpc.NewAPI(a.runtimeConfig.ID, a.appChannel, a.stateStores, a.secretStores, a.secretsConfiguration,
+	return grpc.NewAPI(a.runtimeConfig.ID, a.appChannel, a.proxyStatus, a.stateStores, a.secretStores, a.secretsConfiguration,
 		a.getPublishAdapter(), a.directMessaging, a.actor,
 		a.sendToOutputBinding, a.globalConfig.Spec.TracingSpec, a.accessControlList, string(a.runtimeConfig.ApplicationProtocol))
 }

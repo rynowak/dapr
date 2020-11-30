@@ -26,6 +26,7 @@ import (
 	commonv1pb "github.com/dapr/dapr/pkg/proto/common/v1"
 	internalv1pb "github.com/dapr/dapr/pkg/proto/internals/v1"
 	runtimev1pb "github.com/dapr/dapr/pkg/proto/runtime/v1"
+	"github.com/dapr/dapr/pkg/proxy"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
@@ -45,6 +46,7 @@ type API interface {
 	// DaprInternal Service methods
 	CallActor(ctx context.Context, in *internalv1pb.InternalInvokeRequest) (*internalv1pb.InternalInvokeResponse, error)
 	CallLocal(ctx context.Context, in *internalv1pb.InternalInvokeRequest) (*internalv1pb.InternalInvokeResponse, error)
+	GetProxyStatus(ctx context.Context, in *internalv1pb.ProxyStatusRequest) (*internalv1pb.ProxyStatusResponse, error)
 
 	// Dapr Service methods
 	PublishEvent(ctx context.Context, in *runtimev1pb.PublishEventRequest) (*empty.Empty, error)
@@ -72,6 +74,7 @@ type api struct {
 	actor                 actors.Actors
 	directMessaging       messaging.DirectMessaging
 	appChannel            channel.AppChannel
+	proxyStatus           proxy.StatusMonitor
 	stateStores           map[string]state.Store
 	secretStores          map[string]secretstores.SecretStore
 	secretsConfiguration  map[string]config.SecretsScope
@@ -86,6 +89,7 @@ type api struct {
 // NewAPI returns a new gRPC API
 func NewAPI(
 	appID string, appChannel channel.AppChannel,
+	proxyStatus proxy.StatusMonitor,
 	stateStores map[string]state.Store,
 	secretStores map[string]secretstores.SecretStore,
 	secretsConfiguration map[string]config.SecretsScope,
@@ -101,6 +105,7 @@ func NewAPI(
 		actor:                 actor,
 		id:                    appID,
 		appChannel:            appChannel,
+		proxyStatus:           proxyStatus,
 		publishFn:             publishFn,
 		stateStores:           stateStores,
 		secretStores:          secretStores,
@@ -188,6 +193,11 @@ func (a *api) CallActor(ctx context.Context, in *internalv1pb.InternalInvokeRequ
 		return nil, err
 	}
 	return resp.Proto(), nil
+}
+
+func (a *api) GetProxyStatus(ctx context.Context, in *internalv1pb.ProxyStatusRequest) (*internalv1pb.ProxyStatusResponse, error) {
+	s := a.proxyStatus.Status()
+	return &internalv1pb.ProxyStatusResponse{Enabled: s.Enabled, Port: int32(s.Port)}, nil
 }
 
 func (a *api) PublishEvent(ctx context.Context, in *runtimev1pb.PublishEventRequest) (*empty.Empty, error) {

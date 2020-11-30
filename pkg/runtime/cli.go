@@ -30,6 +30,7 @@ func FromFlags() (*DaprRuntime, error) {
 	daprHTTPPort := flag.String("dapr-http-port", fmt.Sprintf("%v", DefaultDaprHTTPPort), "HTTP port for Dapr API to listen on")
 	daprAPIGRPCPort := flag.String("dapr-grpc-port", fmt.Sprintf("%v", DefaultDaprAPIGRPCPort), "gRPC port for the Dapr API to listen on")
 	daprInternalGRPCPort := flag.String("dapr-internal-grpc-port", "", "gRPC port for the Dapr Internal API to listen on")
+	daprProxyPort := flag.String("dapr-proxy-port", "", "HTTP/gRPC port for proxying requests to another app")
 	appPort := flag.String("app-port", "", "The port the application is listening on")
 	profilePort := flag.String("profile-port", fmt.Sprintf("%v", DefaultProfilePort), "The port for the profile server")
 	appProtocol := flag.String("app-protocol", string(HTTPProtocol), "Protocol for the application: grpc or http")
@@ -89,6 +90,19 @@ func FromFlags() (*DaprRuntime, error) {
 		return nil, errors.Wrap(err, "error parsing dapr-grpc-port flag")
 	}
 
+	var daprProxy int
+	if *daprProxyPort != "" {
+		daprProxy, err = strconv.Atoi(*daprProxyPort)
+		if err != nil {
+			return nil, errors.Wrap(err, "error parsing dapr-proxy-port flag")
+		}
+	} else {
+		daprProxy, err = grpc.GetFreePort()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get free port for proxy")
+		}
+	}
+
 	profPort, err := strconv.Atoi(*profilePort)
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing profile-port flag")
@@ -131,7 +145,7 @@ func FromFlags() (*DaprRuntime, error) {
 	}
 
 	runtimeConfig := NewRuntimeConfig(*appID, placementAddresses, *controlPlaneAddress, *allowedOrigins, *config, *componentsPath,
-		appPrtcl, *mode, daprHTTP, daprInternalGRPC, daprAPIGRPC, applicationPort, profPort, *enableProfiling, concurrency, *enableMTLS, *sentryAddress, *appSSL)
+		appPrtcl, *mode, daprHTTP, daprInternalGRPC, daprProxy, daprAPIGRPC, applicationPort, profPort, *enableProfiling, concurrency, *enableMTLS, *sentryAddress, *appSSL)
 
 	var globalConfig *global_config.Configuration
 	var configErr error

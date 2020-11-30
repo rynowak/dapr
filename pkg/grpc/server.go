@@ -109,6 +109,7 @@ func (s *server) StartNonBlocking() error {
 
 	if s.kind == internalServer {
 		internalv1pb.RegisterServiceInvocationServer(server, s.api)
+		internalv1pb.RegisterProxyServer(server, s.api)
 	} else if s.kind == apiServer {
 		runtimev1pb.RegisterDaprServer(server, s.api)
 	}

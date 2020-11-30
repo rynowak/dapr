@@ -1,0 +1,30 @@
+// ------------------------------------------------------------
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+// ------------------------------------------------------------
+
+syntax = "proto3";
+
+package dapr.proto.internals.v1;
+
+import "dapr/proto/internals/v1/apiversion.proto";
+
+option go_package = "github.com/dapr/dapr/pkg/proto/internals/v1;internals";
+
+// Proxy service is used to exchange information about the proxy status of a Dapr instance.
+// This gRPC service does not perform proxying, it only returns status information.
+service Proxy {
+  // Gets the proxy status
+  rpc GetProxyStatus (ProxyStatusRequest) returns (ProxyStatusResponse) {}
+}
+
+
+message ProxyStatusRequest {
+  // Required. The version of Dapr runtime API.
+  APIVersion ver = 1;
+}
+
+message ProxyStatusResponse {
+    bool enabled = 1;
+    int32 port = 2;
+}
